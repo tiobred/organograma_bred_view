@@ -47,10 +47,10 @@ export default async function Home() {
     ).size;
 
     return (
-        <main className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+        <main className="h-screen flex flex-col bg-white overflow-hidden">
             {/* Header */}
-            <header className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
-                <div className="container mx-auto px-6 py-4">
+            <header className="bg-white border-b border-gray-200 z-50 shadow-sm flex-none">
+                <div className="w-full px-6 py-4">
                     <div className="flex items-center justify-between">
                         {/* Logo & Title */}
                         <div className="flex items-center gap-3">
@@ -100,27 +100,29 @@ export default async function Home() {
             </header>
 
             {/* Org Chart */}
-            <div className="container mx-auto px-6 py-6">
+            <div className="flex-1 w-full bg-gray-50 relative overflow-hidden">
                 {profiles && profiles.length > 0 ? (
-                    <div className="bg-white rounded-2xl shadow-lg overflow-hidden" style={{ height: "calc(100vh - 180px)" }}>
+                    <div className="absolute inset-0">
                         <OrgChartCanvas profiles={profiles as Profile[]} />
                     </div>
                 ) : (
-                    <div className="bg-white rounded-2xl shadow-lg p-12 text-center">
-                        <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                        <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                            Nenhum colaborador cadastrado
-                        </h2>
-                        <p className="text-gray-600 mb-6">
-                            Comece adicionando funcionários para visualizar o organograma
-                        </p>
-                        <Link
-                            href="/admin"
-                            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:shadow-lg transition-all font-medium"
-                        >
-                            <Plus className="w-5 h-5" />
-                            Adicionar Primeiro Funcionário
-                        </Link>
+                    <div className="flex items-center justify-center h-full">
+                        <div className="bg-white rounded-2xl shadow-lg p-12 text-center max-w-md mx-auto">
+                            <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                                Nenhum colaborador cadastrado
+                            </h2>
+                            <p className="text-gray-600 mb-6">
+                                Comece adicionando funcionários para visualizar o organograma
+                            </p>
+                            <Link
+                                href="/admin"
+                                className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:shadow-lg transition-all font-medium"
+                            >
+                                <Plus className="w-5 h-5" />
+                                Adicionar Primeiro Funcionário
+                            </Link>
+                        </div>
                     </div>
                 )}
             </div>
