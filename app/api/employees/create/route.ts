@@ -26,6 +26,7 @@ export async function POST(request: NextRequest) {
         const manager_id = formData.get("manager_id") as string || null;
         const bio = formData.get("bio") as string || null;
         const is_advisor = formData.get("is_advisor") === "true";
+        const responsibilities = formData.get("responsibilities") as string || null;
         const avatarFile = formData.get("avatar") as File | null;
 
         // Validate required fields
@@ -85,9 +86,11 @@ export async function POST(request: NextRequest) {
                 manager_id: manager_id || null,
                 bio,
                 avatar_url,
-                avatar_thumbnail_url,
+
                 metadata: { role: "user" },
+
                 is_advisor,
+                responsibilities,
             }])
             .select()
             .single();

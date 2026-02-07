@@ -59,6 +59,7 @@ export interface Database {
                     position: string
                     updated_at: string | null
                     is_advisor: boolean
+                    responsibilities: string | null
                 }
                 Insert: {
                     avatar_thumbnail_url?: string | null

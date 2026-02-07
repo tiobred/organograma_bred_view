@@ -4,7 +4,13 @@ import type { Database } from "@/types/supabase";
 import Link from "next/link";
 import { Users, Plus, Settings } from "lucide-react";
 
-type Profile = Database["public"]["Tables"]["profiles"]["Row"];
+type ProfileWithDepartment = Database["public"]["Tables"]["profiles"]["Row"] & {
+    departments: {
+        id: string;
+        name: string;
+        color: string;
+    } | null;
+};
 
 export default async function Home() {
     const supabase = await createClient();
@@ -20,7 +26,8 @@ export default async function Home() {
                 color
             )
         `)
-        .order("full_name");
+        .order("full_name")
+        .returns<ProfileWithDepartment[]>();
 
     if (error) {
         console.error("Error fetching profiles:", error);
@@ -103,7 +110,7 @@ export default async function Home() {
             <div className="flex-1 w-full bg-gray-50 relative overflow-hidden">
                 {profiles && profiles.length > 0 ? (
                     <div className="absolute inset-0">
-                        <OrgChartCanvas profiles={profiles as Profile[]} />
+                        <OrgChartCanvas profiles={profiles as ProfileWithDepartment[]} />
                     </div>
                 ) : (
                     <div className="flex items-center justify-center h-full">

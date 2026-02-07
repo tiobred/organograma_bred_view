@@ -16,7 +16,9 @@ interface EmployeeFormProps {
         manager_id: string | null;
         bio: string | null;
         avatar_url: string | null;
+
         is_advisor?: boolean;
+        responsibilities?: string | null;
     };
     managers: Array<{
         id: string;
@@ -41,7 +43,9 @@ export function EmployeeForm({ initialData, managers, mode }: EmployeeFormProps)
         department_id: initialData?.department_id || "",
         manager_id: initialData?.manager_id || "",
         bio: initialData?.bio || "",
+
         is_advisor: initialData?.is_advisor || false,
+        responsibilities: initialData?.responsibilities || "",
     });
 
     // Fetch departments on mount
@@ -246,6 +250,21 @@ export function EmployeeForm({ initialData, managers, mode }: EmployeeFormProps)
                     onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Breve descrição sobre o funcionário..."
+                />
+            </div>
+
+            {/* Responsibilities */}
+            <div>
+                <label htmlFor="responsibilities" className="block text-sm font-medium text-gray-700 mb-2">
+                    Papéis e Responsabilidades
+                </label>
+                <textarea
+                    id="responsibilities"
+                    rows={5}
+                    value={formData.responsibilities}
+                    onChange={(e) => setFormData({ ...formData, responsibilities: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Descreva as principais responsabilidades, projetos e atribuições deste cargo..."
                 />
             </div>
 

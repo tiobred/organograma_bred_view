@@ -21,7 +21,9 @@ import ReactFlow, {
 import "reactflow/dist/style.css";
 import { EmployeeNode, type EmployeeNodeData } from "@/components/org-chart/EmployeeNode";
 import { OrgChartControls } from "./OrgChartControls";
+
 import { RemoveConnectionDialog } from "./RemoveConnectionDialog";
+import { ViewProfileDialog } from "@/components/dialogs/ViewProfileDialog";
 import { Database } from "@/types/supabase";
 import ELK from "elkjs/lib/elk.bundled.js";
 import { Loader2 } from "lucide-react";
@@ -78,6 +80,14 @@ export function OrgChartCanvas({
         employeeName: "",
         managerName: "",
         employeeId: "",
+    });
+
+    const [viewProfile, setViewProfile] = useState<{
+        isOpen: boolean;
+        profile: Profile | null;
+    }>({
+        isOpen: false,
+        profile: null,
     });
 
     const containerRef = useRef<HTMLDivElement>(null);
@@ -146,6 +156,12 @@ export function OrgChartCanvas({
         return descendants;
     }, []);
 
+
+    const handleViewProfile = useCallback((profile: Profile) => {
+        console.log("Opening view profile for", profile.full_name);
+        setViewProfile({ isOpen: true, profile });
+    }, []);
+
     // Filter profiles based on collapsed state
     const getVisibleProfiles = useCallback((profilesToFilter: Profile[], collapsed: Set<string>) => {
         // Start with all profiles
@@ -184,7 +200,8 @@ export function OrgChartCanvas({
                             onNodeClick,
                             collapsed: collapsedState.has(profile.id),
                             onToggle: hasSubordinates ? () => handleNodeToggle(profile.id) : undefined,
-                            hasSubordinates
+                            hasSubordinates,
+                            onViewProfile: handleViewProfile
                         },
                         // Always connectable - onConnect callback validates connectionMode
                         connectable: true,
@@ -282,7 +299,7 @@ export function OrgChartCanvas({
                 setIsLayouting(false);
             }
         },
-        [onNodeClick, setNodes, setEdges, handleNodeToggle, getVisibleProfiles]
+        [onNodeClick, setNodes, setEdges, handleNodeToggle, getVisibleProfiles, handleViewProfile]
     );
 
     // Update layout when profiles or department filter change
@@ -481,6 +498,12 @@ export function OrgChartCanvas({
                 employeeName={removeDialog.employeeName}
                 managerName={removeDialog.managerName}
                 employeeId={removeDialog.employeeId}
+            />
+
+            <ViewProfileDialog
+                isOpen={viewProfile.isOpen}
+                onClose={() => setViewProfile({ ...viewProfile, isOpen: false })}
+                profile={viewProfile.profile}
             />
         </div>
     );

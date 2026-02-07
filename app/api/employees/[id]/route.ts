@@ -20,6 +20,7 @@ export async function POST(
         const manager_id = formData.get("manager_id") as string;
         const bio = formData.get("bio") as string || null;
         const is_advisor = formData.get("is_advisor") === "true";
+        const responsibilities = formData.get("responsibilities") as string || null;
         const avatarFile = formData.get("avatar") as File | null;
 
         // Validate required fields
@@ -92,7 +93,9 @@ export async function POST(
                 department_id: department_id || null,
                 avatar_url: avatar_url !== undefined ? avatar_url : undefined,
                 avatar_thumbnail_url: avatar_thumbnail_url !== undefined ? avatar_thumbnail_url : undefined,
+
                 is_advisor,
+                responsibilities,
             })
             .eq("id", profileId)
             .select()

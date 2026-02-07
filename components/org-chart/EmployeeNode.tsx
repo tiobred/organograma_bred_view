@@ -5,6 +5,7 @@ import { Handle, Position, NodeProps } from "reactflow";
 import { AvatarPreview } from "@/components/avatar/AvatarPreview";
 import { EmployeeContextMenu } from "@/components/org-chart/EmployeeContextMenu";
 import { ChangeManagerDialog } from "@/components/org-chart/ChangeManagerDialog";
+import { ViewProfileDialog } from "@/components/dialogs/ViewProfileDialog";
 import { Database } from "@/types/supabase";
 import { Users, Mail, Sparkles } from "lucide-react";
 
@@ -15,11 +16,13 @@ export interface EmployeeNodeData {
     onNodeClick?: (profile: Profile) => void;
     collapsed?: boolean;
     onToggle?: () => void;
+
     hasSubordinates?: boolean;
+    onViewProfile?: (profile: Profile) => void;
 }
 
 function EmployeeNodeComponent({ data }: NodeProps<EmployeeNodeData>) {
-    const { profile, onNodeClick } = data;
+    const { profile, onNodeClick, onViewProfile } = data;
     const [showContextMenu, setShowContextMenu] = useState(false);
     const [showChangeManager, setShowChangeManager] = useState(false);
     const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
@@ -48,6 +51,11 @@ function EmployeeNodeComponent({ data }: NodeProps<EmployeeNodeData>) {
         <>
             <div
                 onClick={() => onNodeClick?.(profile)}
+                onDoubleClick={(e) => {
+                    e.stopPropagation();
+                    console.log("Double click on node", profile.full_name);
+                    onViewProfile?.(profile);
+                }}
                 onContextMenu={handleContextMenu}
                 className="group relative w-[300px] cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-2xl"
                 style={{
@@ -175,6 +183,8 @@ function EmployeeNodeComponent({ data }: NodeProps<EmployeeNodeData>) {
                 employeeName={profile.full_name}
                 currentManagerId={profile.manager_id}
             />
+
+
         </>
     );
 }

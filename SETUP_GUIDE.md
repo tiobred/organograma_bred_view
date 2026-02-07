@@ -13,7 +13,7 @@ O deploy no Vercel falhou porque **as variáveis de ambiente do Supabase estão 
 1. Acesse [supabase.com](https://supabase.com) e faça login
 2. Clique em **"New Project"**
 3. Preencha:
-   - **Name**: `OrgaView`
+   - **Name**: `Orgaview`
    - **Database Password**: Crie uma senha forte (anote!)
    - **Region**: Escolha `South America (São Paulo)` ou mais próximo
 4. Clique em **"Create new project"**
