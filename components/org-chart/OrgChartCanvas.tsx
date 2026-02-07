@@ -95,28 +95,105 @@ export function OrgChartCanvas({
         return profiles.filter((p) => p.departments?.name === selectedDepartment);
     }, [profiles, selectedDepartment]);
 
+    const [collapsedNodes, setCollapsedNodes] = useState<Set<string>>(new Set());
+    const [initialized, setInitialized] = useState(false);
+
+    // Initialize collapsed state - collapse all parents by default
+    useEffect(() => {
+        if (!initialized && profiles.length > 0) {
+            const parents = new Set(profiles.map(p => p.manager_id).filter(Boolean));
+            const initialCollapsed = new Set<string>();
+            parents.forEach(id => {
+                if (id) initialCollapsed.add(id);
+            });
+            // Also add anyone who is a manager (has subordinates)
+            profiles.forEach(p => {
+                const hasSubordinates = profiles.some(sub => sub.manager_id === p.id);
+                if (hasSubordinates) {
+                    initialCollapsed.add(p.id);
+                }
+            });
+
+            setCollapsedNodes(initialCollapsed);
+            setInitialized(true);
+        }
+    }, [profiles, initialized]);
+
+    const handleNodeToggle = useCallback((nodeId: string) => {
+        setCollapsedNodes((prev) => {
+            const next = new Set(prev);
+            if (next.has(nodeId)) {
+                next.delete(nodeId);
+            } else {
+                next.add(nodeId);
+            }
+            return next;
+        });
+    }, []);
+
+    // Helper to get descendants of a node
+    const getDescendants = useCallback((parentId: string, allProfiles: Profile[]): Set<string> => {
+        const descendants = new Set<string>();
+        const queue = [parentId];
+        while (queue.length > 0) {
+            const current = queue.shift()!;
+            const children = allProfiles.filter(p => p.manager_id === current);
+            children.forEach(child => {
+                descendants.add(child.id);
+                queue.push(child.id);
+            });
+        }
+        return descendants;
+    }, []);
+
+    // Filter profiles based on collapsed state
+    const getVisibleProfiles = useCallback((profilesToFilter: Profile[], collapsed: Set<string>) => {
+        // Start with all profiles
+        let visible = new Set(profilesToFilter.map(p => p.id));
+
+        // For each collapsed node, remove its descendants
+        collapsed.forEach(collapsedId => {
+            // Check if the collapsed node itself is visible (might be hidden by a parent)
+            if (!visible.has(collapsedId)) return;
+
+            const descendants = getDescendants(collapsedId, profilesToFilter);
+            descendants.forEach(id => visible.delete(id));
+        });
+
+        return profilesToFilter.filter(p => visible.has(p.id));
+    }, [getDescendants]);
+
     // Build hierarchical layout using ELK
     const getLayoutedElements = useCallback(
-        async (profilesToLayout: Profile[]) => {
+        async (profilesToLayout: Profile[], collapsedState: Set<string>) => {
             setIsLayouting(true);
 
+            // Filter profiles based on collapsed state
+            const visibleProfiles = getVisibleProfiles(profilesToLayout, collapsedState);
+
             // Create nodes
-            const initialNodes: Node<EmployeeNodeData>[] = profilesToLayout.map(
-                (profile) => ({
-                    id: profile.id,
-                    type: "employee",
-                    position: { x: 0, y: 0 },
-                    data: {
-                        profile,
-                        onNodeClick,
-                    },
-                    // Always connectable - onConnect callback validates connectionMode
-                    connectable: true,
-                })
+            const initialNodes: Node<EmployeeNodeData>[] = visibleProfiles.map(
+                (profile) => {
+                    const hasSubordinates = profilesToLayout.some(p => p.manager_id === profile.id);
+                    return {
+                        id: profile.id,
+                        type: "employee",
+                        position: { x: 0, y: 0 },
+                        data: {
+                            profile,
+                            onNodeClick,
+                            collapsed: collapsedState.has(profile.id),
+                            onToggle: hasSubordinates ? () => handleNodeToggle(profile.id) : undefined,
+                            hasSubordinates
+                        },
+                        // Always connectable - onConnect callback validates connectionMode
+                        connectable: true,
+                    };
+                }
             );
             // Create edges (connections between manager and employees)
-            const initialEdges: Edge[] = profilesToLayout
-                .filter((p) => p.manager_id)
+            const initialEdges: Edge[] = visibleProfiles
+                .filter((p) => p.manager_id && visibleProfiles.some(m => m.id === p.manager_id)) // Ensure both ends are visible
                 .map((profile) => {
                     const isAdvisor = profile.is_advisor;
                     return {
@@ -149,6 +226,14 @@ export function OrgChartCanvas({
                 }
                 return sourceExists && targetExists;
             });
+
+            // If no nodes, clear state
+            if (initialNodes.length === 0) {
+                setNodes([]);
+                setEdges([]);
+                setIsLayouting(false);
+                return;
+            }
 
             // Prepare graph for ELK with validated edges
             const graph = {
@@ -197,19 +282,19 @@ export function OrgChartCanvas({
                 setIsLayouting(false);
             }
         },
-        [onNodeClick, setNodes, setEdges]
+        [onNodeClick, setNodes, setEdges, handleNodeToggle, getVisibleProfiles]
     );
 
     // Update layout when profiles or department filter change
     useEffect(() => {
         if (filteredProfiles.length > 0) {
-            getLayoutedElements(filteredProfiles);
+            getLayoutedElements(filteredProfiles, collapsedNodes);
         } else {
             setNodes([]);
             setEdges([]);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [profiles, selectedDepartment]);
+    }, [profiles, selectedDepartment, collapsedNodes, initialized]); // Add dependencies
 
     // Handle connection creation
     const onConnect = useCallback(
@@ -289,7 +374,7 @@ export function OrgChartCanvas({
 
     // Auto-layout
     const handleAutoLayout = () => {
-        getLayoutedElements(filteredProfiles);
+        getLayoutedElements(filteredProfiles, collapsedNodes);
         setTimeout(() => handleFitView(), 100);
     };
 

@@ -13,6 +13,9 @@ type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 export interface EmployeeNodeData {
     profile: Profile;
     onNodeClick?: (profile: Profile) => void;
+    collapsed?: boolean;
+    onToggle?: () => void;
+    hasSubordinates?: boolean;
 }
 
 function EmployeeNodeComponent({ data }: NodeProps<EmployeeNodeData>) {
@@ -22,8 +25,10 @@ function EmployeeNodeComponent({ data }: NodeProps<EmployeeNodeData>) {
     const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
 
     // Get department name and color from joined data
-    const departmentName = (profile as any).departments?.name || profile.department || "Sem Departamento";
-    const departmentColor = (profile as any).departments?.color || "#6b7280"; // Default gray
+    // @ts-ignore
+    const departmentName = profile.departments?.name || "Sem Departamento";
+    // @ts-ignore
+    const departmentColor = profile.departments?.color || "#6b7280"; // Default gray
 
     // Generate gradient based on department color
     const gradientStyle = {
@@ -100,7 +105,7 @@ function EmployeeNodeComponent({ data }: NodeProps<EmployeeNodeData>) {
                             </p>
 
                             {/* Department Badge */}
-                            {profile.department && (
+                            {(profile as any).departments?.name && (
                                 <div className="flex items-center gap-1.5 mt-2">
                                     <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium" style={{ backgroundColor: `${departmentColor}20`, color: departmentColor }}>
                                         {departmentName}
@@ -133,6 +138,19 @@ function EmployeeNodeComponent({ data }: NodeProps<EmployeeNodeData>) {
                     position={Position.Bottom}
                     className="!bg-gradient-to-r !from-blue-500 !to-purple-500 !border-2 !border-white !w-3 !h-3 !shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
                 />
+
+                {/* Collapse/Expand Button */}
+                {data.hasSubordinates && (
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            data.onToggle?.();
+                        }}
+                        className="absolute -bottom-3 left-1/2 transform -translate-x-1/2 w-6 h-6 bg-white border-2 border-blue-500 rounded-full flex items-center justify-center shadow-md hover:bg-blue-50 transition-colors z-50 text-blue-600 font-bold text-xs leading-none"
+                    >
+                        {data.collapsed ? "+" : "-"}
+                    </button>
+                )}
             </div>
 
             {/* Context Menu */}
