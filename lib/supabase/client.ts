@@ -9,4 +9,4 @@ export function createClient() {
 }
 
 // Legacy export for compatibility
-export const supabase = createClient();
+
