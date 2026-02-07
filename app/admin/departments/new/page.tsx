@@ -2,6 +2,8 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { DepartmentForm } from "@/components/forms/DepartmentForm";
 
+export const dynamic = "force-dynamic";
+
 export default function NewDepartmentPage() {
     return (
         <main className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 p-8">

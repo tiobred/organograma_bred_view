@@ -4,6 +4,8 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { DepartmentForm } from "@/components/forms/DepartmentForm";
 
+export const dynamic = "force-dynamic";
+
 export default async function EditDepartmentPage(props: {
     params: Promise<{ id: string }>;
 }) {
