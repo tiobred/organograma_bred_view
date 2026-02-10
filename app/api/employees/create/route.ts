@@ -29,6 +29,17 @@ export async function POST(request: NextRequest) {
         const responsibilities = formData.get("responsibilities") as string || null;
         const avatarFile = formData.get("avatar") as File | null;
 
+        let tags: string[] = [];
+        const tagsRaw = formData.get("tags");
+        if (tagsRaw) {
+            try {
+                tags = JSON.parse(tagsRaw as string);
+            } catch (e) {
+                console.error("Error parsing tags:", e);
+                tags = [];
+            }
+        }
+
         // Validate required fields
         if (!full_name || !email || !position) {
             return NextResponse.json(
@@ -91,6 +102,7 @@ export async function POST(request: NextRequest) {
 
                 is_advisor,
                 responsibilities,
+                tags,
             }])
             .select()
             .single();

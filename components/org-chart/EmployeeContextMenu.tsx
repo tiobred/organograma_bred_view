@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Edit, Trash2, Link2, X } from "lucide-react";
+import { Edit, Trash2, Link2, X, Tag } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -12,6 +12,7 @@ interface EmployeeContextMenuProps {
     position: { x: number; y: number };
     onClose: () => void;
     onChangeManager: () => void;
+    onManageTags: () => void;
 }
 
 export function EmployeeContextMenu({
@@ -20,6 +21,7 @@ export function EmployeeContextMenu({
     position,
     onClose,
     onChangeManager,
+    onManageTags,
 }: EmployeeContextMenuProps) {
     const router = useRouter();
     const menuRef = useRef<HTMLDivElement>(null);
@@ -113,6 +115,14 @@ export function EmployeeContextMenu({
                         <Edit className="w-4 h-4 text-blue-600" />
                         <span className="text-gray-700">Editar Funcionário</span>
                     </Link>
+
+                    <button
+                        onClick={onManageTags}
+                        className="w-full px-4 py-2.5 text-left hover:bg-green-50 transition-colors flex items-center gap-3 text-sm"
+                    >
+                        <Tag className="w-4 h-4 text-green-600" />
+                        <span className="text-gray-700">Gerenciar Tags</span>
+                    </button>
 
                     <button
                         onClick={handleChangeManager}

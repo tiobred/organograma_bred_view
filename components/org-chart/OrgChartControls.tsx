@@ -23,6 +23,9 @@ interface OrgChartControlsProps {
     connectionMode: boolean;
     isFullscreen: boolean;
     onFullscreenToggle: () => void;
+    tags: string[];
+    selectedTags: string[];
+    onTagChange: (tags: string[]) => void;
 }
 
 export function OrgChartControls({
@@ -36,7 +39,10 @@ export function OrgChartControls({
     selectedDepartment,
     connectionMode,
     isFullscreen,
-    onFullscreenToggle
+    onFullscreenToggle,
+    tags,
+    selectedTags,
+    onTagChange
 }: OrgChartControlsProps) {
     const [showFilters, setShowFilters] = useState(false);
 
@@ -132,6 +138,36 @@ export function OrgChartControls({
                             Limpar Filtro
                         </button>
                     )}
+
+                    <div className="mt-4 pt-4 border-t border-gray-100">
+                        <h3 className="font-semibold text-gray-900 mb-3">Filtrar por Tags</h3>
+                        <div className="flex flex-wrap gap-2">
+                            {tags.map(tag => {
+                                const isSelected = selectedTags.includes(tag);
+                                return (
+                                    <button
+                                        key={tag}
+                                        onClick={() => {
+                                            if (isSelected) {
+                                                onTagChange(selectedTags.filter(t => t !== tag));
+                                            } else {
+                                                onTagChange([...selectedTags, tag]);
+                                            }
+                                        }}
+                                        className={`px-2 py-1 text-xs rounded-full border transition-colors ${isSelected
+                                            ? "bg-blue-100 text-blue-800 border-blue-200"
+                                            : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100"
+                                            }`}
+                                    >
+                                        {tag}
+                                    </button>
+                                );
+                            })}
+                            {tags.length === 0 && (
+                                <p className="text-xs text-gray-500 italic">Nenhuma tag disponível</p>
+                            )}
+                        </div>
+                    </div>
                 </div>
             )}
 

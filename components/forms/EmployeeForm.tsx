@@ -19,6 +19,7 @@ interface EmployeeFormProps {
 
         is_advisor?: boolean;
         responsibilities?: string | null;
+        tags?: string[] | null;
     };
     managers: Array<{
         id: string;
@@ -46,7 +47,30 @@ export function EmployeeForm({ initialData, managers, mode }: EmployeeFormProps)
 
         is_advisor: initialData?.is_advisor || false,
         responsibilities: initialData?.responsibilities || "",
+        tags: initialData?.tags || [] as string[],
     });
+
+    const [tagInput, setTagInput] = useState("");
+
+    const handleAddTag = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter' && tagInput.trim()) {
+            e.preventDefault();
+            if (!formData.tags.includes(tagInput.trim())) {
+                setFormData({
+                    ...formData,
+                    tags: [...formData.tags, tagInput.trim()]
+                });
+            }
+            setTagInput("");
+        }
+    };
+
+    const handleRemoveTag = (tagToRemove: string) => {
+        setFormData({
+            ...formData,
+            tags: formData.tags.filter(tag => tag !== tagToRemove)
+        });
+    };
 
     // Fetch departments on mount
     useEffect(() => {
@@ -81,7 +105,11 @@ export function EmployeeForm({ initialData, managers, mode }: EmployeeFormProps)
 
             const body = new FormData();
             Object.entries(formData).forEach(([key, value]) => {
-                body.append(key, String(value));
+                if (key === 'tags') {
+                    body.append(key, JSON.stringify(value));
+                } else {
+                    body.append(key, String(value));
+                }
             });
 
             if (avatarFile) {
@@ -266,6 +294,41 @@ export function EmployeeForm({ initialData, managers, mode }: EmployeeFormProps)
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Descreva as principais responsabilidades, projetos e atribuições deste cargo..."
                 />
+            </div>
+
+            {/* Tags */}
+            <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Tags (Etiquetas)
+                </label>
+                <div className="space-y-3">
+                    <input
+                        type="text"
+                        value={tagInput}
+                        onChange={(e) => setTagInput(e.target.value)}
+                        onKeyDown={handleAddTag}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Digite uma tag e pressione Enter..."
+                    />
+                    <div className="flex flex-wrap gap-2">
+                        {formData.tags.map((tag, index) => (
+                            <span
+                                key={index}
+                                className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-blue-100 text-blue-800"
+                            >
+                                {tag}
+                                <button
+                                    type="button"
+                                    onClick={() => handleRemoveTag(tag)}
+                                    className="ml-1.5 inline-flex items-center justify-center text-blue-400 hover:text-blue-600 focus:outline-none"
+                                >
+                                    <span className="sr-only">Remover tag</span>
+                                    ×
+                                </button>
+                            </span>
+                        ))}
+                    </div>
+                </div>
             </div>
 
             {/* Actions */}

@@ -60,6 +60,7 @@ export interface Database {
                     updated_at: string | null
                     is_advisor: boolean
                     responsibilities: string | null
+                    tags: string[] | null
                 }
                 Insert: {
                     avatar_thumbnail_url?: string | null
@@ -75,6 +76,7 @@ export interface Database {
                     position: string
                     updated_at?: string | null
                     is_advisor?: boolean
+                    tags?: string[] | null
                 }
                 Update: {
                     avatar_thumbnail_url?: string | null
@@ -90,6 +92,7 @@ export interface Database {
                     position?: string
                     updated_at?: string | null
                     is_advisor?: boolean
+                    tags?: string[] | null
                 }
                 Relationships: [
                     {

@@ -68,6 +68,7 @@ export function OrgChartCanvas({
     const [edges, setEdges, onEdgesChange] = useEdgesState([]);
     const [isLayouting, setIsLayouting] = useState(false);
     const [selectedDepartment, setSelectedDepartment] = useState("");
+    const [selectedTags, setSelectedTags] = useState<string[]>([]);
     const [connectionMode, setConnectionMode] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [removeDialog, setRemoveDialog] = useState<{
@@ -97,13 +98,32 @@ export function OrgChartCanvas({
         new Set(profiles.map((p) => p.departments?.name).filter(Boolean))
     ) as string[];
 
-    // Filter profiles by department - use useMemo to prevent recalculation
+    // Get unique tags
+    const allTags = React.useMemo(() => {
+        const tags = new Set<string>();
+        profiles.forEach(p => {
+            p.tags?.forEach(tag => tags.add(tag));
+        });
+        return Array.from(tags).sort();
+    }, [profiles]);
+
+    // Filter profiles by department and tags - use useMemo to prevent recalculation
     const filteredProfiles = React.useMemo(() => {
-        if (selectedDepartment === "") {
-            return profiles;
-        }
-        return profiles.filter((p) => p.departments?.name === selectedDepartment);
-    }, [profiles, selectedDepartment]);
+        return profiles.filter((p) => {
+            // Department filter
+            if (selectedDepartment && p.departments?.name !== selectedDepartment) {
+                return false;
+            }
+
+            // Tag filter (OR logic - if any selected tag matches)
+            if (selectedTags.length > 0) {
+                const hasTag = p.tags?.some(tag => selectedTags.includes(tag));
+                if (!hasTag) return false;
+            }
+
+            return true;
+        });
+    }, [profiles, selectedDepartment, selectedTags]);
 
     const [collapsedNodes, setCollapsedNodes] = useState<Set<string>>(new Set());
     const [initialized, setInitialized] = useState(false);
@@ -302,7 +322,7 @@ export function OrgChartCanvas({
         [onNodeClick, setNodes, setEdges, handleNodeToggle, getVisibleProfiles, handleViewProfile]
     );
 
-    // Update layout when profiles or department filter change
+    // Update layout when filtered profiles change
     useEffect(() => {
         if (filteredProfiles.length > 0) {
             getLayoutedElements(filteredProfiles, collapsedNodes);
@@ -310,8 +330,7 @@ export function OrgChartCanvas({
             setNodes([]);
             setEdges([]);
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [profiles, selectedDepartment, collapsedNodes, initialized]); // Add dependencies
+    }, [filteredProfiles, collapsedNodes, initialized, getLayoutedElements]);
 
     // Handle connection creation
     const onConnect = useCallback(
@@ -484,6 +503,9 @@ export function OrgChartCanvas({
                     onConnectionModeToggle={() => setConnectionMode(!connectionMode)}
                     departments={departments}
                     selectedDepartment={selectedDepartment}
+                    tags={allTags}
+                    selectedTags={selectedTags}
+                    onTagChange={setSelectedTags}
                     connectionMode={connectionMode}
                     isFullscreen={isFullscreen}
                     onFullscreenToggle={handleFullscreenToggle}

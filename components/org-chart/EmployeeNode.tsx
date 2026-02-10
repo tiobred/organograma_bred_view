@@ -5,6 +5,7 @@ import { Handle, Position, NodeProps } from "reactflow";
 import { AvatarPreview } from "@/components/avatar/AvatarPreview";
 import { EmployeeContextMenu } from "@/components/org-chart/EmployeeContextMenu";
 import { ChangeManagerDialog } from "@/components/org-chart/ChangeManagerDialog";
+import { ManageTagsDialog } from "@/components/org-chart/ManageTagsDialog";
 import { ViewProfileDialog } from "@/components/dialogs/ViewProfileDialog";
 import { Database } from "@/types/supabase";
 import { Users, Mail, Sparkles } from "lucide-react";
@@ -25,6 +26,7 @@ function EmployeeNodeComponent({ data }: NodeProps<EmployeeNodeData>) {
     const { profile, onNodeClick, onViewProfile } = data;
     const [showContextMenu, setShowContextMenu] = useState(false);
     const [showChangeManager, setShowChangeManager] = useState(false);
+    const [showManageTags, setShowManageTags] = useState(false);
     const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
 
     // Get department name and color from joined data
@@ -133,6 +135,17 @@ function EmployeeNodeComponent({ data }: NodeProps<EmployeeNodeData>) {
                         </div>
                     </div>
 
+                    {/* Tags */}
+                    {profile.tags && profile.tags.length > 0 && (
+                        <div className="px-4 pb-3 flex flex-wrap gap-1.5">
+                            {profile.tags.map((tag, i) => (
+                                <span key={i} className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-600 border border-gray-200">
+                                    {tag}
+                                </span>
+                            ))}
+                        </div>
+                    )}
+
                     {/* Animated gradient overlay on hover */}
                     <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-blue-500/5 via-purple-500/5 to-pink-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
 
@@ -159,21 +172,27 @@ function EmployeeNodeComponent({ data }: NodeProps<EmployeeNodeData>) {
                         {data.collapsed ? "+" : "-"}
                     </button>
                 )}
-            </div>
+            </div >
 
             {/* Context Menu */}
-            {showContextMenu && (
-                <EmployeeContextMenu
-                    employeeId={profile.id}
-                    employeeName={profile.full_name}
-                    position={menuPosition}
-                    onClose={() => setShowContextMenu(false)}
-                    onChangeManager={() => {
-                        setShowContextMenu(false);
-                        setShowChangeManager(true);
-                    }}
-                />
-            )}
+            {
+                showContextMenu && (
+                    <EmployeeContextMenu
+                        employeeId={profile.id}
+                        employeeName={profile.full_name}
+                        position={menuPosition}
+                        onClose={() => setShowContextMenu(false)}
+                        onChangeManager={() => {
+                            setShowContextMenu(false);
+                            setShowChangeManager(true);
+                        }}
+                        onManageTags={() => {
+                            setShowContextMenu(false);
+                            setShowManageTags(true);
+                        }}
+                    />
+                )
+            }
 
             {/* Change Manager Dialog */}
             <ChangeManagerDialog
@@ -182,6 +201,15 @@ function EmployeeNodeComponent({ data }: NodeProps<EmployeeNodeData>) {
                 employeeId={profile.id}
                 employeeName={profile.full_name}
                 currentManagerId={profile.manager_id}
+            />
+
+            {/* Manage Tags Dialog */}
+            <ManageTagsDialog
+                isOpen={showManageTags}
+                onClose={() => setShowManageTags(false)}
+                employeeId={profile.id}
+                employeeName={profile.full_name}
+                initialTags={profile.tags || []}
             />
 
 
