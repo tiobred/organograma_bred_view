@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
         const { data: profile, error: profileError } = await supabase
             .from("profiles")
             .select("metadata")
-            .eq("user_id", user.id)
+            .eq("id", user.id) // Fixed: user_id to id
             .single();
 
         if (profileError || !profile) {
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
         }
 
         // @ts-ignore
-        const role = profile.metadata?.role;
+        const role = (profile.metadata as any)?.role;
         if (role !== "admin" && role !== "editor") {
             return NextResponse.json({ error: "Sem permissão" }, { status: 403 });
         }
