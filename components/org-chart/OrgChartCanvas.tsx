@@ -207,14 +207,224 @@ export function OrgChartCanvas({
             // Filter profiles based on collapsed state
             const visibleProfiles = getVisibleProfiles(profilesToLayout, collapsedState);
 
-            // Create nodes
-            const initialNodes: Node<EmployeeNodeData>[] = visibleProfiles.map(
-                (profile) => {
+            // VERTICAL LAYOUT CONFIG
+            const VERTICAL_THRESHOLD = 5;
+            const NODE_WIDTH = 300;
+            const NODE_HEIGHT = 100;
+            const VERTICAL_SPACING = 20;
+
+            // 1. Identify "Large Teams" (Managers with > Threshold visible subordinates)
+            const subordinatesByManager = new Map<string, Profile[]>();
+            visibleProfiles.forEach(p => {
+                if (p.manager_id && visibleProfiles.some(m => m.id === p.manager_id)) {
+                    const subs = subordinatesByManager.get(p.manager_id) || [];
+                    subs.push(p);
+                    subordinatesByManager.set(p.manager_id, subs);
+                }
+            });
+
+            const managersWithLargeTeams = new Set<string>();
+            subordinatesByManager.forEach((subs, managerId) => {
+                if (subs.length > VERTICAL_THRESHOLD) {
+                    managersWithLargeTeams.add(managerId);
+                }
+            });
+
+            // 2. Prepare ELK Graph Nodes
+            // We need to map Profile ID -> ELK Node ID
+            // For normal profiles: ELK ID = Profile ID
+            // For vertical groups: We create a "Virtual Node" for the group
+
+            const elkNodes: any[] = [];
+            const profileIdToElkId = new Map<string, string>(); // Maps real profile ID to the node ID used in ELK (could be a virtual group)
+
+            // Add all profiles to ELK, but group large teams
+            const processedProfiles = new Set<string>();
+
+            visibleProfiles.forEach(profile => {
+                if (processedProfiles.has(profile.id)) return;
+
+                const isInsideStack = profile.manager_id && managersWithLargeTeams.has(profile.manager_id);
+                const isLargeManager = managersWithLargeTeams.has(profile.id);
+
+                // Case 1: Subordinate inside a stack, NOT a large manager themselves
+                // These are rendered purely visually inside the parent's stack.
+                if (isInsideStack && !isLargeManager) {
+                    return;
+                }
+
+                // Case 2: Add the Profile Node ITSELF to ELK
+                // We only add the individual node to ELK if it's NOT inside a stack.
+                // (If it IS inside a stack, it's position is calculated in finalNodes step relative to the stack)
+                if (!isInsideStack) {
+                    elkNodes.push({
+                        id: profile.id,
+                        width: NODE_WIDTH,
+                        height: NODE_HEIGHT
+                    });
+                    processedProfiles.add(profile.id);
+                    profileIdToElkId.set(profile.id, profile.id);
+                }
+
+                // Case 3: If it manages a large team, create the Virtual Node for its subordinates
+                // This happens regardless of whether the manager is inside a stack or not.
+                if (isLargeManager) {
+                    const subordinates = subordinatesByManager.get(profile.id) || [];
+                    const virtualNodeId = `group-${profile.id}`;
+
+                    // Calculate height for the vertical stack
+                    const stackHeight = (subordinates.length * (NODE_HEIGHT + VERTICAL_SPACING)) - VERTICAL_SPACING;
+
+                    elkNodes.push({
+                        id: virtualNodeId,
+                        width: NODE_WIDTH, // Keep same width as a single node
+                        height: stackHeight
+                    });
+
+                    // Subordinates will be processed (skipped) in subsequent iterations
+                    // or picked up here if we want to be explicit, but the isInsideStack check handles them.
+                }
+            });
+
+            // 3. Prepare ELK Edges
+            const elkEdges: any[] = [];
+
+            visibleProfiles.forEach(profile => {
+                if (!profile.manager_id) return;
+
+                // If manager is not visible, skip
+                if (!visibleProfiles.some(m => m.id === profile.manager_id)) return;
+
+                const managerId = profile.manager_id;
+
+                // Determine Source and Target ELK IDs
+                let sourceElkId = managerId;
+                let targetElkId = profile.id;
+
+                // If manager belongs to a large team (is a subordinate in a stack), 
+                // we actually need the node ID to be the Manager's ID? 
+                // Wait, if the manager IS part of a stack, their "node" is inside the virtual node.
+                // But ELK only knows about the Virtual Node.
+                // Complex case: Large Team Manager -> Large Team Manager.
+
+                // SIMPLIFICATION:
+                // For ELK, we connect:
+                // Normal -> Normal
+                // Normal -> Stack (Virtual Node)
+                // Stack -> Normal (This is the tricky part, where does the edge start?)
+                // Stack -> Stack
+
+                // Check if Target is in a large team (i.e., is part of a stack)
+                if (managersWithLargeTeams.has(managerId) && subordinatesByManager.get(managerId)?.some(s => s.id === profile.id)) {
+                    // This edge is INTERNAL to the stack (Manager -> Subordinate in stack).
+                    // We DO NOT let ELK handle this edge. We draw it manually or let ReactFlow draw it based on fixed positions.
+                    return;
+                }
+
+                // Check if *Manager* (Source) is part of a stack
+                // (i.e. Manager's Manager has a large team)
+                const managersManagerId = visibleProfiles.find(p => p.id === managerId)?.manager_id;
+                if (managersManagerId && managersWithLargeTeams.has(managersManagerId)) {
+                    sourceElkId = `group-${managersManagerId}`;
+                }
+
+                // Check if *Profile* (Target) is a Manager of a large team (so target is the manager node itself, not a stack)
+                // If the profile is just a normal node, ID is profile.id.
+                // If profile is in a stack (handled above, we returned).
+
+                // If Target is a Manager of a separate large team stack, the target is just the manager node (which is NOT the stack).
+                // The stack is a sibling of the manager node in layout?
+                // No, my logic above: Manager is one node, Subordinates are a SEPARATE Virtual Node.
+                // So Edges are: Manager -> VirtualNode.
+
+                // Re-evaluating logic:
+                // IF I am the manager of a large team:
+                // I have an edge to the Virtual Node representing my subordinates.
+                if (managersWithLargeTeams.has(managerId) && !subordinatesByManager.get(managerId)?.some(s => s.id === profile.id)) {
+                    // This is an edge from a Large Team Manager to someone NOT in their stack? 
+                    // Unlikely in tree, but possible.
+                }
+
+                // Correct Logic for "Manager -> Stack":
+                // We manually add ONE edge from Manager -> VirtualNode for the whole group.
+            });
+
+            // Add standard edges using our map, plus the special Manager->Stack edges
+
+            // 3a. Standard Node -> Node edges (where neither is inside a stack)
+            // ... strict ELK graph logic ...
+
+            // Let's iterate constructed ELK Nodes to build edges
+            // Use original profiles to determine connections
+
+            // We need a map of ProfileID -> "IsInsideStack(StackID)"
+            const profileStackMap = new Map<string, string>();
+            managersWithLargeTeams.forEach(mgrId => {
+                const subs = subordinatesByManager.get(mgrId) || [];
+                const stackId = `group-${mgrId}`;
+                subs.forEach(s => profileStackMap.set(s.id, stackId));
+            });
+
+            visibleProfiles.forEach(p => {
+                if (!p.manager_id) return;
+                const mgrId = p.manager_id;
+
+                // Skip if manager invisible
+                if (!visibleProfiles.some(m => m.id === mgrId)) return;
+
+                const sourceStackId = profileStackMap.get(mgrId);
+                const targetStackId = profileStackMap.get(p.id);
+
+                const sourceId = sourceStackId || mgrId; // Use Stack ID if inside stack, else distinct ID
+                const targetId = targetStackId || p.id;
+
+                // Avoid self-loops (e.g. internal edges in stack)
+                if (sourceId === targetId) return;
+
+                // Add edge to ELK
+                elkEdges.push({
+                    id: `${sourceId}-${targetId}`, // Edge between layout blocks
+                    sources: [sourceId],
+                    targets: [targetId]
+                });
+            });
+
+            // Also, for every Large Team Manager, we need an edge to their Subordinate Stack
+            managersWithLargeTeams.forEach(mgrId => {
+                // Check if Manager is inside another stack
+                const sourceId = profileStackMap.get(mgrId) || mgrId;
+                const targetId = `group-${mgrId}`; // The virtual node
+
+                elkEdges.push({
+                    id: `${sourceId}-${targetId}`,
+                    sources: [sourceId],
+                    targets: [targetId]
+                });
+            });
+
+            // Deduplicate edges
+            const uniqueElkEdges = Array.from(new Set(elkEdges.map(e => JSON.stringify(e)))).map(s => JSON.parse(s));
+
+            const graph = {
+                id: "root",
+                layoutOptions: elkOptions,
+                children: elkNodes,
+                edges: uniqueElkEdges,
+            };
+
+            try {
+                const layoutedGraph = await elk.layout(graph);
+
+                // 4. Construct Final React Flow Nodes
+                const finalNodes: Node<EmployeeNodeData>[] = [];
+
+                // Helper to Create Node
+                const createNode = (profile: Profile, x: number, y: number): Node<EmployeeNodeData> => {
                     const hasSubordinates = profilesToLayout.some(p => p.manager_id === profile.id);
                     return {
                         id: profile.id,
                         type: "employee",
-                        position: { x: 0, y: 0 },
+                        position: { x, y },
                         data: {
                             profile,
                             onNodeClick,
@@ -223,98 +433,69 @@ export function OrgChartCanvas({
                             hasSubordinates,
                             onViewProfile: handleViewProfile
                         },
-                        // Always connectable - onConnect callback validates connectionMode
                         connectable: true,
                     };
-                }
-            );
-            // Create edges (connections between manager and employees)
-            const initialEdges: Edge[] = visibleProfiles
-                .filter((p) => p.manager_id && visibleProfiles.some(m => m.id === p.manager_id)) // Ensure both ends are visible
-                .map((profile) => {
-                    const isAdvisor = profile.is_advisor;
-                    return {
-                        id: `${profile.manager_id}-${profile.id}`,
-                        source: profile.manager_id!,
-                        target: profile.id,
-                        type: "smoothstep",
-                        animated: false,
-                        style: {
-                            stroke: isAdvisor ? "#9333ea" : "#6366f1", // Purple for advisor, default for normal
-                            strokeWidth: 2,
-                            strokeDasharray: isAdvisor ? "5,5" : undefined, // Dashed for advisor
-                        },
-                        markerEnd: {
-                            type: MarkerType.ArrowClosed,
-                            color: isAdvisor ? "#9333ea" : "#6366f1", // Match marker color to stroke
-                        },
-                    };
+                };
+
+                // Apply ELK positions
+                layoutedGraph.children?.forEach((elkNode) => {
+                    if (elkNode.id.startsWith("group-")) {
+                        // This is a Virtual Node (Stack)
+                        // It contains the subordinates of the manager (manager_id = extract from group-ID)
+                        const managerId = elkNode.id.replace("group-", "");
+                        const subordinates = subordinatesByManager.get(managerId) || [];
+
+                        // Stack them vertically inside this box
+                        subordinates.forEach((sub, index) => {
+                            // Calculate Absolute Position
+                            const posX = elkNode.x ?? 0; // Same X as container
+                            const posY = (elkNode.y ?? 0) + (index * (NODE_HEIGHT + VERTICAL_SPACING));
+
+                            finalNodes.push(createNode(sub, posX, posY));
+                        });
+                    } else {
+                        // Standard Node (Manager or independent)
+                        const profile = visibleProfiles.find(p => p.id === elkNode.id);
+                        if (profile) {
+                            finalNodes.push(createNode(profile, elkNode.x ?? 0, elkNode.y ?? 0));
+                        }
+                    }
                 });
 
-            // CRITICAL FIX: Filter edges to only include those with valid source and target nodes
-            // This prevents ELK graph JSON import error: "Referenced shape does not exist"
-            const validEdges = initialEdges.filter((edge) => {
-                const sourceExists = initialNodes.some((n) => n.id === edge.source);
-                const targetExists = initialNodes.some((n) => n.id === edge.target);
-                if (!sourceExists || !targetExists) {
-                    console.warn(
-                        `Skipping invalid edge: ${edge.id} - source exists: ${sourceExists}, target exists: ${targetExists}`
-                    );
-                }
-                return sourceExists && targetExists;
-            });
+                // 5. Construct Final Edges
+                // Re-create all edges based on the final real node positions
+                const finalEdges: Edge[] = visibleProfiles
+                    .filter((p) => p.manager_id && visibleProfiles.some(m => m.id === p.manager_id))
+                    .map((profile) => {
+                        const isAdvisor = profile.is_advisor;
+                        return {
+                            id: `${profile.manager_id}-${profile.id}`,
+                            source: profile.manager_id!,
+                            target: profile.id,
+                            type: "smoothstep", // React Flow handles the routing automatically!
+                            animated: false,
+                            style: {
+                                stroke: isAdvisor ? "#9333ea" : "#6366f1",
+                                strokeWidth: 2,
+                                strokeDasharray: isAdvisor ? "5,5" : undefined,
+                            },
+                            markerEnd: {
+                                type: MarkerType.ArrowClosed,
+                                color: isAdvisor ? "#9333ea" : "#6366f1",
+                            },
+                        };
+                    });
 
-            // If no nodes, clear state
-            if (initialNodes.length === 0) {
-                setNodes([]);
-                setEdges([]);
-                setIsLayouting(false);
-                return;
-            }
-
-            // Prepare graph for ELK with validated edges
-            const graph = {
-                id: "root",
-                layoutOptions: elkOptions,
-                children: initialNodes.map((node) => ({
-                    id: node.id,
-                    width: 300,
-                    height: 100,
-                })),
-                edges: validEdges.map((edge) => ({
-                    id: edge.id,
-                    sources: [edge.source],
-                    targets: [edge.target],
-                })),
-            };
-
-            try {
-                const layoutedGraph = await elk.layout(graph);
-
-                const layoutedNodes = initialNodes.map((node) => {
-                    const layoutedNode = layoutedGraph.children?.find(
-                        (n) => n.id === node.id
-                    );
-                    return {
-                        ...node,
-                        position: {
-                            x: layoutedNode?.x ?? 0,
-                            y: layoutedNode?.y ?? 0,
-                        },
-                    };
-                });
-
-                setNodes(layoutedNodes);
+                setNodes(finalNodes);
                 setEdges(
-                    validEdges.map((edge) => ({
+                    finalEdges.map((edge) => ({
                         ...edge,
                         deletable: true,
                     }))
                 );
             } catch (error) {
                 console.error("Layout error:", error);
-                setNodes(initialNodes);
-                setEdges(validEdges);
+                // Fallback? currently logging
             } finally {
                 setIsLayouting(false);
             }
